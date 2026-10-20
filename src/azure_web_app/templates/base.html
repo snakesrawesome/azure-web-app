@@ -12,6 +12,9 @@
         <a class="navbar-brand" href="{{ url_for('index') }}">CS 188</a>
         <div class="navbar-nav">
           <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+          {% if current_user %}
+            <a class="nav-link" href="{{ url_for('account') }}">My account</a>
+          {% endif %}
         </div>
       </div>
       <nav class="navbar navbar-expand bg-body-tertiary mb-4">

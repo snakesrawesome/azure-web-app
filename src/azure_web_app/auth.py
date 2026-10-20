@@ -8,9 +8,11 @@ Notice that there's no SQL in this file. Endpoints decide what should happen;
 the Database class in db.py does the talking to the database.
 """
 
-from flask import Flask, request
+from flask import Flask, request, make_response
 from flask_bcrypt import check_password_hash, generate_password_hash
 from flask_restful import Api, Resource
+from azure_web_app.sessions import clear_session_cookie, set_session_cookie, verify_session_cookie
+
 
 from ._constants import (
     BAD_LOGIN_MESSAGE,
@@ -18,6 +20,7 @@ from ._constants import (
     MIN_PASSWORD_LENGTH,
     PASSWORD_PATTERN,
     USERNAME_PATTERN,
+    SESSION_COOKIE_NAME
 )
 from .db import get_db
 
@@ -123,9 +126,29 @@ class Register(Resource):
 #        wrote in db.py.
 # ----------------------------------------------------------------------------
 
-# class Login(Resource):
-#     def post(self):
-#         ...
+class Login(Resource):
+    def post(self):
+        data = get_json_body()
+        missing_field = find_missing_field(data, ("username", "password"))
+        if missing_field is not None:
+            return {"message": f"Missing required field: {missing_field}"}, 400
+
+
+        db = get_db()
+
+        row = db.get_login_info(data["username"])
+        if row is None or check_password_hash(row.password,data["password"]):
+            return {"message": BAD_LOGIN_MESSAGE}, 401
+
+        # session_id = db.create_session(user.userid)
+        # response = make_response({"message": message, "displayName": user.display_name}, 200)
+        # set_session_cookie(response, session_id)
+        db.update_last_login(data["username"])
+        if row.last_login is None:
+            return {"message":f"Welcome back {row.display_name}\nlast login was never"},200
+        else:
+            return {"message":f"Welcome back {row.display_name}\nlast login was {row.last_login}"},200
+
 
 
 def setup_auth(app: Flask) -> None:
@@ -134,5 +157,19 @@ def setup_auth(app: Flask) -> None:
     # that nothing happens just because someone imported this module.
     api = Api(app)
     api.add_resource(Register, "/register")
-    # TODO: Once you implement Login
-    # api.add_resource(Login, "/login")
+    api.add_resource(Login, "/login")
+    api.add_resource(Logout, "/logout")
+
+class Logout(Resource):
+    def post(self):
+        # The browser sends our cookies automatically with every request,
+        # so the JavaScript doesn't have to do anything special.
+        session_id = verify_session_cookie(request.cookies.get(SESSION_COOKIE_NAME))
+        if session_id is not None:
+            get_db().delete_session(session_id)
+
+        # Clear the cookie even if the session was already gone, so the browser
+        # stops sending a cookie that doesn't work anymore.
+        response = make_response({"message": "Logged out"}, 200)
+        clear_session_cookie(response)
+        return response

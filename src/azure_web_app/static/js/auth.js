@@ -143,9 +143,24 @@ async function submitRegisterForm(event) {
 //   3. POST the username and password to /login.
 //   4. Show the server's message in an alert, whether the login worked or not.
 //   5. If it worked, close the login modal.
+//if (reply.response.ok) {
+//		window.location.reload();
+//	}
 
 // Remove the green/red validation styling from an input once the user starts
 // typing in it again.
+
+async function logout() {
+	const reply = await postJson("/logout", {});
+	if (reply === null || !reply.response.ok) {
+		alert("Logout failed. Please try again.");
+		return;
+	}
+	// Go back to the home page. This loads a fresh page, so the navbar is
+	// rendered again without the session cookie.
+	window.location.href = "/";
+}
+
 function clearValidation(event) {
 	event.target.classList.remove("is-invalid", "is-valid");
 }
@@ -172,6 +187,7 @@ function attachEventListeners() {
 	// ?. means "only call addEventListener if the element exists". Every page
 	// includes this script, but a page might not have every form on it.
 	document.getElementById("registerForm")?.addEventListener("submit", submitRegisterForm);
+	document.getElementById("logoutButton")?.addEventListener("click", logout);
 
 	// TODO: Attach submitLoginForm to the login form's "submit" event.
 
